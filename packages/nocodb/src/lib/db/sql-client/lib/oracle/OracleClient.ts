@@ -395,7 +395,7 @@ class OracleClient extends KnexClient {
       args.databaseName = this.connectionConfig.connection.user;
 
       const rows = await this.raw(
-        `select table_name FROM all_tables WHERE owner='${args.databaseName}'`
+        `select table_name as tn FROM all_tables WHERE owner='${args.databaseName}'`
       );
       for (let i = 0; i < rows.length; i++) {
         let el = rows[i];
@@ -483,7 +483,8 @@ class OracleClient extends KnexClient {
       seq.sequence_name,
       CASE
         WHEN seq.sequence_name IS NOT NULL
-        AND p.constraint_type = 'P' THEN 1
+           AND p.constraint_type = 'P' THEN 1
+        WHEN c.IDENTITY_COLUMN = 'YES' THEN 1
         ELSE 0
       END as ai,
       c.table_name as tn,
@@ -581,6 +582,9 @@ class OracleClient extends KnexClient {
         el.dtxs = el.ns;
 
         el.au = false;
+
+        // remove any precision or scale value from datatype
+        el.dt = el.dt?.replace(/\([\d,]+\)$/, '');
 
         response[i] = el;
       }
@@ -997,7 +1001,7 @@ class OracleClient extends KnexClient {
       for (let i = 0; i < response.length; i++) {
         let el = response[i];
         el = mapKeys(el, (_v, k) => k.toLowerCase());
-        el.view_name = el.object_name;
+        el.view_name = el.view_name || el.object_name;
         response[i] = el;
       }
 
@@ -1560,23 +1564,85 @@ class OracleClient extends KnexClient {
       args.sqlClient = this.sqlClient;
 
       /**************** create table ****************/
-      const upQuery = createTable(args.tn, args);
+      const upQuery = this.createTable(args.tn, args);
       await this.sqlClient.raw(upQuery);
 
       const downStatement = this.sqlClient.schema.dropTable(args.table).toSQL();
 
       this.emit(`Success : ${upQuery}`);
 
+      const triggerStatements = await this.afterTableCreate(args);
+
       /**************** return files *************** */
       result.data.object = {
-        upStatement: [{ sql: upQuery }],
-        downStatement,
+        upStatement: [{ sql: upQuery }, ...triggerStatements.upStatement],
+        downStatement: [
+          ...triggerStatements.downStatement,
+          { sql: downStatement },
+        ],
       };
     } catch (e) {
       log.ppe(e, _func);
       throw e;
     }
 
+    return result;
+  }
+
+  // https://chartio.com/resources/tutorials/how-to-define-an-auto-increment-primary-key-in-oracle/
+  // fallback for older version to auto generate auto incremented pk using sequence and trigger
+  async afterTableCreate(args) {
+    const result = { upStatement: [], downStatement: [] };
+    let upQuery = '';
+    let downQuery = '';
+
+    const pk = args.columns.find((c) => c.pk);
+    if (!pk || !this.useTriggerBasedAI) return result;
+
+    for (let i = 0; i < args.columns.length; i++) {
+      const column = args.columns[i];
+      if (column.ai) {
+        const triggerName = `nc_trigger_${args.table_name}_${column.column_name}_on_insert`;
+        const sequenceName = `nc_sequence_${args.table_name}_${column.column_name}`;
+
+        const sequenceCreateQuery = this.genQuery(`CREATE SEQUENCE ??.??`, [
+          this.schema,
+          sequenceName,
+        ]);
+        const triggerCreateQuery = this.genQuery(
+          `CREATE OR REPLACE TRIGGER ??.??
+            BEFORE INSERT ON ??.??
+            FOR EACH ROW
+          BEGIN
+            SELECT ??.nextval
+            INTO :new.??
+            FROM dual;
+          END;`,
+          [
+            this.schema,
+            triggerName,
+            this.schema,
+            args.table_name,
+            sequenceName,
+            column.column_name,
+          ]
+        );
+
+        upQuery +=
+          sequenceCreateQuery + this.querySeparator() + triggerCreateQuery;
+
+        await this.sqlClient.raw(sequenceCreateQuery);
+        await this.sqlClient.raw(triggerCreateQuery);
+
+        downQuery +=
+          this.querySeparator() +
+          this.genQuery(`DROP TRIGGER ??.??`, [this.schema, triggerName]) +
+          this.querySeparator() +
+          this.genQuery(`DROP SEQUENCE ??.??`, [this.schema, sequenceName]);
+      }
+    }
+    result.upStatement[0] = { sql: upQuery };
+    result.downStatement[0] = { sql: downQuery };
     return result;
   }
 
@@ -1628,13 +1694,13 @@ class OracleClient extends KnexClient {
 
         if (args.columns[i].altered & 4) {
           // col remove
-          upQuery += alterTableRemoveColumn(
+          upQuery += this.alterTableRemoveColumn(
             args.table,
             args.columns[i],
-            oldColumn
-            // upQuery
+            oldColumn,
+            upQuery
           );
-          downQuery += alterTableAddColumn(
+          downQuery += this.alterTableAddColumn(
             args.table,
             oldColumn,
             args.columns[i],
@@ -1642,13 +1708,13 @@ class OracleClient extends KnexClient {
           );
         } else if (args.columns[i].altered & 2 || args.columns[i].altered & 8) {
           // col edit
-          upQuery += alterTableChangeColumn(
+          upQuery += this.alterTableChangeColumn(
             args.table,
             args.columns[i],
             oldColumn,
             upQuery
           );
-          downQuery += alterTableChangeColumn(
+          downQuery += this.alterTableChangeColumn(
             args.table,
             oldColumn,
             args.columns[i],
@@ -1656,17 +1722,17 @@ class OracleClient extends KnexClient {
           );
         } else if (args.columns[i].altered & 1) {
           // col addition
-          upQuery += alterTableAddColumn(
+          upQuery += this.alterTableAddColumn(
             args.table,
             args.columns[i],
             oldColumn,
             upQuery
           );
-          downQuery += alterTableRemoveColumn(
+          downQuery += this.alterTableRemoveColumn(
             args.table,
             args.columns[i],
-            oldColumn
-            // downQuery
+            oldColumn,
+            downQuery
           );
         }
       }
@@ -1679,9 +1745,8 @@ class OracleClient extends KnexClient {
         //downQuery = `ALTER TABLE ${args.columns[0].tn} ${downQuery};`;
       }
 
-      await this.sqlClient.raw(upQuery);
-
-      console.log(upQuery);
+      // todo: test with multiple sql statements
+      await this.sqlClient.raw(upQuery.replace(/;\s*$/, ''));
 
       result.data.object = {
         upStatement: [{ sql: upQuery }],
@@ -1711,7 +1776,7 @@ class OracleClient extends KnexClient {
 
       /** ************** create up & down statements *************** */
       const upStatement = this.sqlClient.schema.dropTable(args.tn).toSQL();
-      const downQuery = createTable(args.tn, args);
+      const downQuery = this.createTable(args.tn, args);
 
       this.emit(`Success : ${upStatement}`);
 
@@ -1918,145 +1983,199 @@ class OracleClient extends KnexClient {
     const func = this.totalRecords.name;
     throw new Error('Function not supported for oracle yet');
   }
-}
 
-function alterTablePK(n, o, _existingQuery, createTable = false) {
-  const numOfPksInOriginal = [];
-  const numOfPksInNew = [];
-  let pksChanged = 0;
+  alterTablePK(t, n, o, _existingQuery, createTable = false) {
+    const numOfPksInOriginal = [];
+    const numOfPksInNew = [];
+    let pksChanged = 0;
 
-  for (let i = 0; i < n.length; ++i) {
-    if (n[i].pk) {
-      if (n[i].altered !== 4) numOfPksInNew.push(n[i].cn);
-    }
-  }
-
-  for (let i = 0; i < o.length; ++i) {
-    if (o[i].pk) {
-      numOfPksInOriginal.push(o[i].cn);
-    }
-  }
-
-  if (numOfPksInNew.length === numOfPksInOriginal.length) {
-    for (let i = 0; i < numOfPksInNew.length; ++i) {
-      if (numOfPksInOriginal[i] !== numOfPksInNew[i]) {
-        pksChanged = 1;
-        break;
+    for (let i = 0; i < n.length; ++i) {
+      if (n[i].pk) {
+        if (n[i].altered !== 4) numOfPksInNew.push(n[i].cn);
       }
     }
-  } else {
-    pksChanged = numOfPksInNew.length - numOfPksInOriginal.length;
-  }
 
-  let query = '';
-  if (!numOfPksInNew.length && !numOfPksInOriginal.length) {
-    // do nothing
-  } else if (pksChanged) {
-    query += numOfPksInOriginal.length ? ',DROP PRIMARY KEY' : '';
-
-    if (numOfPksInNew.length) {
-      if (createTable) {
-        query += `, PRIMARY KEY(${numOfPksInNew.join(',')})`;
-      } else {
-        query += `, ADD PRIMARY KEY(${numOfPksInNew.join(',')})`;
+    for (let i = 0; i < o.length; ++i) {
+      if (o[i].pk) {
+        numOfPksInOriginal.push(o[i].cn);
       }
     }
-  }
 
-  return query;
-}
-
-function alterTableRemoveColumn(n, _o, existingQuery) {
-  let query = existingQuery ? ',' : '';
-  query += ` DROP COLUMN \`${n.cn}\``;
-  return query;
-}
-
-function createTableColumn(t, n, o, existingQuery) {
-  return alterTableColumn(t, n, o, existingQuery, 0);
-}
-
-function alterTableAddColumn(t, n, o, existingQuery) {
-  return alterTableColumn(t, n, o, existingQuery, 1);
-}
-
-function alterTableChangeColumn(t, n, o, existingQuery) {
-  return alterTableColumn(t, n, o, existingQuery, 2);
-}
-
-function createTable(table, args) {
-  let query = '';
-
-  for (let i = 0; i < args.columns.length; ++i) {
-    query += createTableColumn(table, args.columns[i], null, query);
-  }
-
-  query += alterTablePK(args.columns, [], query, true);
-
-  query = `CREATE TABLE ${args.tn} (` + query + ')';
-
-  return query;
-}
-
-function alterTableColumn(t, n, o, existingQuery, change = 2) {
-  // CREATE TABLE test1 ( id integer NOT NULL, title varchar NULL);
-
-  //   CREATE TABLE CHINOOK.NEWTABLE_1 (
-  //     ID INTEGER NOT NULL,
-  //     TITLE VARCHAR(100),
-  //     CONSTRAINT NEWTABLE_1_PK PRIMARY KEY (ID)
-  // );
-
-  const scale = parseInt(n.dtxs) ? parseInt(n.dtxs) : null;
-
-  let query = existingQuery ? ',' : '';
-
-  const defaultValue = getDefaultValue(n);
-
-  if (change === 0) {
-    if (n.ai) {
-      switch (n.dt) {
-        case 'int4':
-        default:
-          query += ` ${n.cn} serial`;
+    if (numOfPksInNew.length === numOfPksInOriginal.length) {
+      for (let i = 0; i < numOfPksInNew.length; ++i) {
+        if (numOfPksInOriginal[i] !== numOfPksInNew[i]) {
+          pksChanged = 1;
           break;
+        }
       }
     } else {
-      query += ` ${n.cn} ${n.dt}`;
+      pksChanged = numOfPksInNew.length - numOfPksInOriginal.length;
     }
 
-    query += n.dtxp && n.dtxp !== ' ' ? `(${n.dtxp}` : '';
-    query += scale ? `,${scale}` : '';
-    query += n.dtxp && n.dtxp !== ' ' ? ')' : '';
+    let query = '';
+    if (!numOfPksInNew.length && !numOfPksInOriginal.length) {
+      // do nothing
+    } else if (pksChanged) {
+      query += numOfPksInOriginal.length ? ',DROP PRIMARY KEY' : '';
 
-    query += n.rqd ? ' NOT NULL' : ' NULL';
-    query += defaultValue ? ` DEFAULT ${defaultValue}` : '';
-  } else if (change === 1) {
-    query += ` ADD  ${n.cn} ${n.dt}`;
-    query += n.rqd ? ' NOT NULL' : ' NULL';
-    query += defaultValue ? ` DEFAULT ${defaultValue}` : ' ';
-    query = `ALTER TABLE ${t} ${query};`;
-  } else {
-    if (n.cn !== o.cno) {
-      query += `\nALTER TABLE ${t} RENAME COLUMN ${n.cno} TO ${n.cn};\n`;
+      if (numOfPksInNew.length) {
+        if (createTable) {
+          // todo: handling duplicate constraint name
+          query += this.genQuery(
+            `, CONSTRAINT ?? PRIMARY KEY(${numOfPksInNew
+              .map(() => '??')
+              .join(',')})`,
+            [`NC_${t}_PK`, ...numOfPksInNew],
+            true
+          );
+        } else {
+          // todo: verify add new primary key
+          query += this.genQuery(
+            `, ADD PRIMARY KEY(${numOfPksInNew.map(() => '??').join(',')})`,
+            numOfPksInNew,
+            true
+          );
+        }
+      }
     }
 
-    if (n.dt !== o.dt) {
-      query += `\nALTER TABLE ${t} ALTER COLUMN ${n.cn} TYPE ${n.dt};\n`;
-    }
-
-    if (n.rqd !== o.rqd) {
-      query += `\nALTER TABLE ${t} ALTER COLUMN ${n.cn} `;
-      query += n.rqd ? ` SET NOT NULL;\n` : ` DROP NOT NULL;\n`;
-    }
-
-    if (n.cdf !== o.cdf) {
-      query += `\nALTER TABLE ${t} ALTER COLUMN ${n.cn} `;
-      query += n.cdf ? ` SET DEFAULT ${n.cdf};\n` : ` DROP DEFAULT;\n`;
-    }
+    return query;
   }
 
-  return query;
+  alterTableRemoveColumn(t, n, _o, existingQuery) {
+    let query = existingQuery
+      ? ','
+      : this.genQuery(`ALTER TABLE ?? `, [t], true);
+    query += this.genQuery(` DROP COLUMN ??`, [n.cn], true);
+    return query;
+  }
+
+  createTableColumn(t, n, o, existingQuery) {
+    return this.alterTableColumn(t, n, o, existingQuery, 0);
+  }
+
+  alterTableAddColumn(t, n, o, existingQuery) {
+    return this.alterTableColumn(t, n, o, existingQuery, 1);
+  }
+
+  alterTableChangeColumn(t, n, o, existingQuery) {
+    return this.alterTableColumn(t, n, o, existingQuery, 2);
+  }
+
+  createTable(table, args) {
+    let query = '';
+
+    for (let i = 0; i < args.columns.length; ++i) {
+      query += this.createTableColumn(table, args.columns[i], null, query);
+    }
+
+    query += this.alterTablePK(table, args.columns, [], query, true);
+
+    query = this.genQuery(`CREATE TABLE ?? (`, [args.tn], true) + query + ')';
+
+    return query;
+  }
+
+  alterTableColumn(t, n, o, existingQuery, change = 2) {
+    const scale = parseInt(n.dtxs) ? parseInt(n.dtxs) : null;
+
+    let query = existingQuery ? ',' : '';
+
+    const defaultValue = getDefaultValue(n);
+
+    if (change === 0) {
+      if (n.ai) {
+        switch (n.dt) {
+          case 'NUMBER':
+          default:
+            query += this.genQuery(` ?? NUMBER `, [n.cn]);
+            break;
+        }
+      } else {
+        query += this.genQuery(` ?? ${n.dt}`, [n.cn]);
+      }
+      if (!['CLOB', 'NCLOB'].includes(n.dt)) {
+        query += n.dtxp && n.dtxp !== ' ' ? `(${n.dtxp}` : '';
+        query += scale ? `,${scale}` : '';
+        query += n.dtxp && n.dtxp !== ' ' ? ')' : '';
+      }
+
+      // https://chartio.com/resources/tutorials/how-to-define-an-auto-increment-primary-key-in-oracle/
+      // `IDENTITY` is not supported in older version,
+      //        use trigger based ai a fallback with sequence or trigger
+      if (n.ai && !this.useTriggerBasedAI) {
+        query += ' GENERATED BY DEFAULT ON NULL AS IDENTITY';
+      } else {
+        query += n.rqd ? ' NOT NULL' : ' NULL';
+        query += defaultValue ? ` DEFAULT ${defaultValue}` : '';
+      }
+    } else if (change === 1) {
+      query += this.genQuery(` ADD  ?? ${n.dt}`, [n.cn]);
+
+      if (!['CLOB', 'NCLOB'].includes(n.dt)) {
+        query += n.dtxp && n.dtxp !== ' ' ? `(${n.dtxp}` : '';
+        query += scale ? `,${scale}` : '';
+        query += n.dtxp && n.dtxp !== ' ' ? ')' : '';
+      }
+
+      if (n.ai && !this.useTriggerBasedAI) {
+        query += ' GENERATED BY DEFAULT ON NULL AS IDENTITY';
+      } else {
+        query += n.rqd ? ' NOT NULL' : ' NULL';
+        query += defaultValue ? ` DEFAULT ${defaultValue}` : '';
+      }
+      query = `ALTER TABLE ${this.genQuery('??', [t], true)} ${query};`;
+    } else {
+      let scaleAndPrec = '';
+      if (!['CLOB', 'NCLOB'].includes(n.dt)) {
+        scaleAndPrec += n.dtxp && n.dtxp !== ' ' ? `(${n.dtxp}` : '';
+        scaleAndPrec += scale ? `,${scale}` : '';
+        scaleAndPrec += n.dtxp && n.dtxp !== ' ' ? ')' : '';
+      }
+      if (n.cn !== o.cno) {
+        query += this.genQuery(
+          `\nALTER TABLE ?? RENAME COLUMN ?? TO ??;\n`,
+          [t, n.cno, n.cn],
+          true
+        );
+      }
+
+      if (n.dt !== o.dt) {
+        query += this.genQuery(
+          `\nALTER TABLE ?? MODIFY ?? ${n.dt}${scaleAndPrec};\n`,
+          [t, n.cn]
+        );
+      }
+
+      if (!n.rqd !== !o.rqd) {
+        query += this.genQuery(`\nALTER TABLE ?? MODIFY ?? `, [t, n.cn], true);
+        query += n.rqd ? ` NOT NULL;\n` : ` NULL;\n`;
+      }
+
+      if (n.cdf !== o.cdf) {
+        query += this.genQuery(
+          `\nALTER TABLE ?? MODIFY ?? ${n.dt}${scaleAndPrec}`,
+          [t, n.cn],
+          true
+        );
+        query += n.cdf ? `  DEFAULT ${n.cdf};\n` : `  DEFAULT NULL;\n`;
+      }
+    }
+
+    return query;
+  }
+
+  get schema() {
+    return this.connectionConfig.connection?.user;
+  }
+
+  // trigger based auto increment column
+  get useTriggerBasedAI() {
+    return (
+      this.connectionConfig.useTriggerBasedAI ??
+      this.connectionConfig.connection?.useTriggerBasedAI
+    );
+  }
 }
 
 function getDefaultValue(n) {

@@ -1562,6 +1562,8 @@ class BaseModelSqlv2 {
       let response;
       // const driver = trx ? trx : this.dbDriver;
 
+      this.processInsertOrUpdateObject(insertObj);
+
       const query = this.dbDriver(this.tnPath).insert(insertObj);
       if ((this.isPg || this.isMssql) && this.model.primaryKey) {
         query.returning(
@@ -1569,6 +1571,20 @@ class BaseModelSqlv2 {
         );
         response = await this.execAndParse(query);
       }
+      /* todo: find a proper way to extract inserted id using returning
+               https://stackoverflow.com/questions/63667930/insert-and-return-value-in-oracle
+     else if (this.isOracle) {
+    response = await this.dbDriver.raw(    `
+      DECLARE
+         id1   NUMBER;
+      BEGIN
+         ${query.toQuery()}
+         RETURNING ?? INTO id1;
+         DBMS_OUTPUT.PUT_LINE(id1);
+      END;`,
+                [this.model.primaryKey.column_name]
+              );
+      }*/
 
       const ai = this.model.columns.find((c) => c.ai);
 
@@ -1592,12 +1608,10 @@ class BaseModelSqlv2 {
         }
 
         if (ai) {
-          if (this.isSqlite) {
+          if (this.isSqlite || this.isOracle) {
             // sqlite doesnt return id after insert
             id = (
-              await this.dbDriver(this.tnPath)
-                .select(ai.column_name)
-                .max(ai.column_name, { as: 'id' })
+              await this.dbDriver(this.tnPath).max(ai.column_name, { as: 'id' })
             )[0].id;
           } else if (this.isSnowflake) {
             id = (
@@ -1624,6 +1638,41 @@ class BaseModelSqlv2 {
       console.log(e);
       await this.errorInsert(e, data, trx, cookie);
       throw e;
+    }
+  }
+
+  private processInsertOrUpdateObject(insertObj: Record<string, any>) {
+    // if oracle use `TO_DATE` function to parse date STRING
+    if (this.isOracle) {
+      for (const col of this.model.columns) {
+        if (!(col.column_name in insertObj)) continue;
+
+        if (col.uidt === UITypes.Checkbox) {
+          // convert boolean to number since oracle doesn't have boolean type
+          insertObj[col.column_name] =
+            typeof insertObj[col.column_name] === 'boolean'
+              ? +insertObj[col.column_name]
+              : insertObj[col.column_name];
+          continue;
+        }
+
+        if (
+          !insertObj[col.column_name] ||
+          !(col.dt === 'DATE' || col.dt.startsWith('TIMESTAMP'))
+        )
+          continue;
+
+        if (col.uidt === UITypes.Date) {
+          insertObj[col.column_name] = this.dbDriver.raw(
+            `TO_DATE('${insertObj[col.column_name]}','YYYY-MM-DD')`
+          );
+        } else if (col.uidt === UITypes.DateTime || col.uidt === UITypes.Time) {
+          // ref - https://docs.oracle.com/cd/B19306_01/server.102/b14200/sql_elements004.htm#i34924
+          insertObj[col.column_name] = this.dbDriver.raw(
+            `TO_DATE('${insertObj[col.column_name]}','yyyy-MM-dd HH24:mi:ss')`
+          );
+        }
+      }
     }
   }
 
@@ -1694,6 +1743,8 @@ class BaseModelSqlv2 {
 
       await this.beforeUpdate(data, trx, cookie);
 
+      this.processInsertOrUpdateObject(updateObj);
+
       const query = this.dbDriver(this.tnPath)
         .update(updateObj)
         .where(await this._wherePk(id));
@@ -1744,6 +1795,10 @@ class BaseModelSqlv2 {
 
   get isPg() {
     return this.clientType === 'pg';
+  }
+
+  get isOracle() {
+    return this.clientType === 'oracledb';
   }
 
   get isMySQL() {
@@ -2858,7 +2913,9 @@ class BaseModelSqlv2 {
         ? (await this.dbDriver.raw(query))?.rows
         : query.slice(0, 6) === 'select' && !this.isMssql
         ? await this.dbDriver.from(
-            this.dbDriver.raw(query).wrap('(', ') __nc_alias')
+            this.dbDriver
+              .raw(query)
+              .wrap('(', this.isOracle ? ')' : ') __nc_alias')
           )
         : await this.dbDriver.raw(query),
       childTable

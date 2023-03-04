@@ -1,21 +1,55 @@
 import UITypes from '../UITypes';
 import { IDType } from './index';
 
+// Ref - https://docs.oracle.com/cd/B28359_01/server.111/b28318/datatype.htm#CNCPT513
+// https://docs.oracle.com/cd/B19306_01/olap.102/b14346/dml_datatypes002.htm
+const dbTypes = [
+  'CHAR',
+  'VARCHAR',
+  'VARCHAR2',
+  'NUMBER',
+  'INTEGER',
+  'SHORTINTEGER',
+  'LONGINTEGER',
+  'DECIMAL',
+  'SHORTDECIMAL',
+  'NCHAR',
+  'NVARCHAR2',
+  'CLOB',
+  'NCLOB',
+  'BINARY_FLOAT',
+  'BINARY_DOUBLE',
+  'DATE',
+  'TIMESTAMP',
+  'TIMESTAMP WITH LOCAL TIME ZONE',
+  'TIMESTAMP WITH TIME ZONE',
+  'BLOB',
+  'CLOB',
+  'NCLOB',
+  'BFILE',
+
+  'RAW',
+  'LONG RAW',
+
+  'ROWID',
+  'UROWID',
+
+  'XMLType',
+  'UriType',
+];
+
 export class OracleUi {
   static getNewTableColumns(): any[] {
     return [
       {
-        column_name: 'id',
+        column_name: 'ID',
         title: 'Id',
-        dt: 'integer',
-        dtx: 'integer',
-        ct: 'int(11)',
-        nrqd: false,
+        dt: 'NUMBER',
         rqd: true,
         ck: false,
         pk: true,
         un: false,
-        ai: false,
+        ai: true,
         cdf: null,
         clen: null,
         np: null,
@@ -28,11 +62,9 @@ export class OracleUi {
         uicn: '',
       },
       {
-        column_name: 'title',
+        column_name: 'TITLE',
         title: 'Title',
-        dt: 'varchar',
-        dtx: 'specificType',
-        ct: 'varchar(45)',
+        dt: 'VARCHAR2',
         nrqd: true,
         rqd: false,
         ck: false,
@@ -50,51 +82,13 @@ export class OracleUi {
         uip: '',
         uicn: '',
       },
-      // {
-      //  column_name: "created_at",
-      //   dt: "timestamp",
-      //   dtx: "specificType",
-      //   ct: "varchar(45)",
-      //   nrqd: true,
-      //   rqd: false,
-      //   ck: false,
-      //   pk: false,
-      //   un: false,
-      //   ai: false,
-      //   cdf: 'CURRENT_TIMESTAMP',
-      //   clen: 45,
-      //   np: null,
-      //   ns: null,
-      //   dtxp: '',
-      //   dtxs: ''
-      // },
-      // {
-      //  column_name: "updated_at",
-      //   dt: "timestamp",
-      //   dtx: "specificType",
-      //   ct: "varchar(45)",
-      //   nrqd: true,
-      //   rqd: false,
-      //   ck: false,
-      //   pk: false,
-      //   un: false,
-      //   ai: false,
-      //   cdf: 'CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP',
-      //   clen: 45,
-      //   np: null,
-      //   ns: null,
-      //   dtxp: '',
-      //   dtxs: ''
-      // }
     ];
   }
 
   static getNewColumn(suffix) {
     return {
-      column_name: 'title' + suffix,
-      dt: 'varchar',
-      dtx: 'specificType',
-      ct: 'varchar(45)',
+      column_name: 'TITLE' + suffix,
+      dt: 'VARCHAR2',
       nrqd: true,
       rqd: false,
       ck: false,
@@ -114,124 +108,27 @@ export class OracleUi {
     };
   }
 
-  // static getDefaultLengthForDatatype(type) {
-  //   switch (type) {
-  //     case "int":
-  //       return 11;
-  //       break;
-  //     case "tinyint":
-  //       return 1;
-  //       break;
-  //     case "smallint":
-  //       return 5;
-  //       break;
-  //
-  //     case "mediumint":
-  //       return 9;
-  //       break;
-  //     case "bigint":
-  //       return 20;
-  //       break;
-  //     case "bit":
-  //       return 64;
-  //       break;
-  //     case "boolean":
-  //       return '';
-  //       break;
-  //     case "float":
-  //       return 12;
-  //       break;
-  //     case "decimal":
-  //       return 10;
-  //       break;
-  //     case "double":
-  //       return 22;
-  //       break;
-  //     case "serial":
-  //       return 20;
-  //       break;
-  //     case "date":
-  //       return '';
-  //       break;
-  //     case "datetime":
-  //     case "timestamp":
-  //       return 6;
-  //       break;
-  //     case "time":
-  //       return '';
-  //       break;
-  //     case "year":
-  //       return '';
-  //       break;
-  //     case "char":
-  //       return 255;
-  //       break;
-  //     case "varchar":
-  //       return 45;
-  //       break;
-  //     case "nchar":
-  //       return 255;
-  //       break;
-  //     case "text":
-  //       return '';
-  //       break;
-  //     case "tinytext":
-  //       return '';
-  //       break;
-  //     case "mediumtext":
-  //       return '';
-  //       break;
-  //     case "longtext":
-  //       return ''
-  //       break;
-  //     case "binary":
-  //       return 255;
-  //       break;
-  //     case "varbinary":
-  //       return 65500;
-  //       break;
-  //     case "blob":
-  //       return '';
-  //       break;
-  //     case "tinyblob":
-  //       return '';
-  //       break;
-  //     case "mediumblob":
-  //       return '';
-  //       break;
-  //     case "longblob":
-  //       return '';
-  //       break;
-  //     case "enum":
-  //       return '\'a\',\'b\'';
-  //       break;
-  //     case "set":
-  //       return '\'a\',\'b\'';
-  //       break;
-  //     case "geometry":
-  //       return '';
-  //     case "point":
-  //       return '';
-  //     case "linestring":
-  //       return '';
-  //     case "polygon":
-  //       return '';
-  //     case "multipoint":
-  //       return '';
-  //     case "multilinestring":
-  //       return '';
-  //     case "multipolygon":
-  //       return '';
-  //     case "json":
-  //       return ''
-  //       break;
-  //
-  //   }
-  //
-  // }
-
   static getDefaultLengthForDatatype(type) {
     switch (type) {
+      case 'NUMBER':
+      case 'INTEGER':
+      case 'LONGINTEGER':
+        return 11;
+
+      case 'DECIMAL':
+        return 10;
+
+      case 'SHORTDECIMAL':
+        return 5;
+
+      case 'CHAR':
+        return 255;
+
+      case 'VARCHAR':
+      case 'VARCHAR2':
+        return 255;
+      case 'NCHAR':
+        return 255;
       default:
         return '';
     }
@@ -239,59 +136,18 @@ export class OracleUi {
 
   static getDefaultLengthIsDisabled(type): any {
     switch (type) {
-      case 'integer':
-        return true;
-      case 'bfile':
-      case 'binary rowid':
-      case 'binary double':
-      case 'binary_float':
-      case 'blob':
-      case 'canoical':
-      case 'cfile':
-      case 'char':
-      case 'clob':
-      case 'content pointer':
-      case 'contigous array':
-      case 'date':
-      case 'decimal':
-      case 'double precision':
-      case 'float':
-      case 'interval day to second':
-      case 'interval year to month':
-      case 'lob pointer':
-      case 'long':
-      case 'long raw':
-      case 'named collection':
-      case 'named object':
-      case 'nchar':
-      case 'nclob':
-      case 'number':
-      case 'nvarchar2':
-      case 'octet':
-      case 'oid':
-      case 'pointer':
-      case 'raw':
-      case 'real':
-      case 'ref':
-      case 'ref cursor':
-      case 'rowid':
-      case 'signed binary integer':
-      case 'smallint':
-      case 'table':
-      case 'time':
-      case 'time with tz':
-      case 'timestamp':
-      case 'timestamp with local time zone':
-      case 'timestamp with local tz':
-      case 'timestamp with timezone':
-      case 'timestamp with tz':
-      case 'unsigned binary integer':
-      case 'urowid':
-      case 'varchar':
-      case 'varchar2':
-      case 'varray':
-      case 'varying array':
+      case 'NUMBER':
+      case 'INTEGER':
+      case 'LONGINTEGER':
+      case 'DECIMAL':
+      case 'SHORTDECIMAL':
+      case 'CHAR':
+      case 'VARCHAR':
+      case 'VARCHAR2':
+      case 'NCHAR':
         return false;
+      default:
+        return true;
     }
   }
 
@@ -304,69 +160,17 @@ export class OracleUi {
 
   static getDefaultScaleForDatatype(type): any {
     switch (type) {
-      case 'integer':
-      case 'bfile':
-      case 'binary rowid':
-      case 'binary double':
-      case 'binary_float':
-      case 'blob':
-      case 'canoical':
-      case 'cfile':
-      case 'char':
-      case 'clob':
-      case 'content pointer':
-      case 'contigous array':
-      case 'date':
-      case 'decimal':
-      case 'double precision':
-      case 'float':
-      case 'interval day to second':
-      case 'interval year to month':
-      case 'lob pointer':
-      case 'long':
-      case 'long raw':
-      case 'named collection':
-      case 'named object':
-      case 'nchar':
-      case 'nclob':
-      case 'number':
-      case 'nvarchar2':
-      case 'octet':
-      case 'oid':
-      case 'pointer':
-      case 'raw':
-      case 'real':
-      case 'ref':
-      case 'ref cursor':
-      case 'rowid':
-      case 'signed binary integer':
-      case 'smallint':
-      case 'table':
-      case 'time':
-      case 'time with tz':
-      case 'timestamp':
-      case 'timestamp with local time zone':
-      case 'timestamp with local tz':
-      case 'timestamp with timezone':
-      case 'timestamp with tz':
-      case 'unsigned binary integer':
-      case 'urowid':
-      case 'varchar':
-      case 'varchar2':
-      case 'varray':
-      case 'varying array':
-        return ' ';
+      case 'DECIMAL':
+      case 'SHORTDECIMAL':
+        return 2;
+      default:
+        return '';
     }
   }
 
   static colPropAIDisabled(col, columns) {
     // console.log(col);
-    if (
-      col.dt === 'int4' ||
-      col.dt === 'integer' ||
-      col.dt === 'bigint' ||
-      col.dt === 'smallint'
-    ) {
+    if (['INTEGER', 'SHORTINTEGER', 'LONGINTEGER'].includes(col.dt)) {
       for (let i = 0; i < columns.length; ++i) {
         if (columns[i].cn !== col.cn && columns[i].ai) {
           return true;
@@ -379,53 +183,29 @@ export class OracleUi {
   }
 
   static colPropUNDisabled(_col) {
-    // console.log(col);
     return true;
-    // if (col.dt === 'int' ||
-    //   col.dt === 'tinyint' ||
-    //   col.dt === 'smallint' ||
-    //   col.dt === 'mediumint' ||
-    //   col.dt === 'bigint') {
-    //   return false;
-    // } else {
-    //   return true;
-    // }
   }
 
   static onCheckboxChangeAI(col) {
     console.log(col);
-    if (
-      col.dt === 'int' ||
-      col.dt === 'bigint' ||
-      col.dt === 'smallint' ||
-      col.dt === 'tinyint'
-    ) {
+    if (['INTEGER', 'SHORTINTEGER', 'LONGINTEGER'].includes(col.dt)) {
       col.altered = col.altered || 2;
     }
-
-    // if (!col.ai) {
-    //   col.dtx = 'specificType'
-    // } else {
-    //   col.dtx = ''
-    // }
   }
 
-  static showScale(_columnObj) {
-    return false;
+  static showScale(columnObj) {
+    return (
+      columnObj.dt === 'DECIMAL' ||
+      columnObj.dt === 'NUMBER' ||
+      columnObj.dt === 'BINARY_FLOAT' ||
+      columnObj.dt === 'BINARY_DOUBLE' ||
+      columnObj.dt === 'SHORTDECIMAL'
+    );
   }
 
   static removeUnsigned(columns) {
     for (let i = 0; i < columns.length; ++i) {
-      if (
-        columns[i].altered === 1 &&
-        !(
-          columns[i].dt === 'int' ||
-          columns[i].dt === 'bigint' ||
-          columns[i].dt === 'tinyint' ||
-          columns[i].dt === 'smallint' ||
-          columns[i].dt === 'mediumint'
-        )
-      ) {
+      if (columns[i].altered === 1 && !(columns[i].dt === 'NUMBER')) {
         columns[i].un = false;
         console.log('>> resetting unsigned value', columns[i].cn);
       }
@@ -460,16 +240,7 @@ export class OracleUi {
   }
 
   static onCheckboxChangeAU(col) {
-    console.log(col);
-    // if (1) {
     col.altered = col.altered || 2;
-    // }
-
-    // if (!col.ai) {
-    //   col.dtx = 'specificType'
-    // } else {
-    //   col.dtx = ''
-    // }
   }
 
   /**
@@ -689,76 +460,44 @@ export class OracleUi {
 
   static getAbstractType(col): any {
     switch ((col.dt || col.dt).toLowerCase()) {
-      case 'integer':
+      case 'CHAR':
+      case 'VARCHAR':
+      case 'VARCHAR2':
+      case 'NCHAR':
+      case 'NVARCHAR2':
+      case 'CLOB':
+      case 'NCLOB':
+        return 'string';
+
+      case 'INTEGER':
+      case 'SHORTINTEGER':
+      case 'LONGINTEGER':
         return 'integer';
-      case 'bfile':
-      case 'binary rowid':
-      case 'binary double':
-      case 'binary_float':
-        return 'string';
-      case 'blob':
-        return 'blob';
-      case 'canoical':
-      case 'cfile':
-      case 'char':
-      case 'clob':
-      case 'content pointer':
-      case 'contigous array':
-        return 'string';
-      case 'date':
-        return 'date';
-      case 'decimal':
-      case 'double precision':
-      case 'float':
+
+      case 'DECIMAL':
+      case 'SHORTDECIMAL':
+      case 'NUMBER':
+      case 'BINARY_FLOAT':
+      case 'BINARY_DOUBLE':
         return 'float';
-      case 'interval day to second':
-      case 'interval year to month':
-        return 'string';
-      case 'lob pointer':
-        return 'string';
-      case 'long':
-        return 'integer';
-      case 'long raw':
-        return 'string';
-      case 'named collection':
-      case 'named object':
-      case 'nchar':
-      case 'nclob':
-        return 'string';
-      case 'nvarchar2':
-      case 'octet':
-      case 'oid':
-      case 'pointer':
-      case 'raw':
-        return 'string';
-      case 'real':
-      case 'number':
-        return 'float';
-      case 'ref':
-      case 'ref cursor':
-      case 'rowid':
-      case 'signed binary integer':
-        return 'string';
-      case 'smallint':
-        return 'integer';
-      case 'table':
-        return 'string';
-      case 'time':
-      case 'time with tz':
-        return 'time';
-      case 'timestamp':
-      case 'timestamp with local time zone':
-      case 'timestamp with local tz':
-      case 'timestamp with timezone':
-      case 'timestamp with tz':
+
+      case 'DATE':
+      case 'TIMESTAMP':
+      case 'TIMESTAMP WITH LOCAL TIME ZONE':
+      case 'TIMESTAMP WITH TIME ZONE':
         return 'datetime';
-      case 'unsigned binary integer':
-      case 'urowid':
-      case 'varchar':
-      case 'varchar2':
-        return 'string';
-      case 'varray':
-      case 'varying array':
+
+      case 'BLOB':
+      case 'BFILE':
+        return 'blob';
+
+      case 'RAW':
+      case 'LONG RAW':
+      case 'ROWID':
+      case 'UROWID':
+      case 'XMLType':
+      case 'UriType':
+      default:
         return 'string';
     }
   }
@@ -801,7 +540,7 @@ export class OracleUi {
         {
           const isAutoIncId = idType === 'AI';
           const isAutoGenId = idType === 'AG';
-          colProp.dt = isAutoGenId ? 'varchar' : 'integer';
+          colProp.dt = isAutoGenId ? 'VARCHAR2' : 'NUMBER';
           colProp.pk = true;
           colProp.un = isAutoIncId;
           colProp.ai = isAutoIncId;
@@ -810,43 +549,43 @@ export class OracleUi {
         }
         break;
       case 'ForeignKey':
-        colProp.dt = 'varchar';
+        colProp.dt = 'NUMBER';
         break;
       case 'SingleLineText':
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         break;
       case 'LongText':
-        colProp.dt = 'clob';
+        colProp.dt = 'CLOB';
         break;
       case 'Attachment':
-        colProp.dt = 'clob';
+        colProp.dt = 'CLOB';
         break;
       case 'Checkbox':
-        colProp.dt = 'tinyint';
+        colProp.dt = 'NUMBER';
         colProp.dtxp = 1;
         colProp.cdf = '0';
         break;
       case 'MultiSelect':
-        colProp.dt = 'varchar2';
+        colProp.dt = 'CLOB';
         break;
       case 'SingleSelect':
-        colProp.dt = 'varchar2';
+        colProp.dt = 'CLOB';
         break;
       case 'Collaborator':
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         break;
       case 'Date':
-        colProp.dt = 'varchar';
+        colProp.dt = 'DATE';
 
         break;
       case 'Year':
-        colProp.dt = 'year';
+        colProp.dt = 'NUMBER';
         break;
       case 'Time':
-        colProp.dt = 'time';
+        colProp.dt = 'DATE';
         break;
       case 'PhoneNumber':
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         colProp.validate = {
           func: ['isMobilePhone'],
           args: [''],
@@ -854,7 +593,7 @@ export class OracleUi {
         };
         break;
       case 'Email':
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         colProp.validate = {
           func: ['isEmail'],
           args: [''],
@@ -862,7 +601,7 @@ export class OracleUi {
         };
         break;
       case 'URL':
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         colProp.validate = {
           func: ['isURL'],
           args: [''],
@@ -870,13 +609,13 @@ export class OracleUi {
         };
         break;
       case 'Number':
-        colProp.dt = 'integer';
+        colProp.dt = 'NUMBER';
         break;
       case 'Decimal':
-        colProp.dt = 'decimal';
+        colProp.dt = 'DECIMAL';
         break;
       case 'Currency':
-        colProp.dt = 'decimal';
+        colProp.dt = 'DECIMAL';
         colProp.validate = {
           func: ['isCurrency'],
           args: [''],
@@ -884,50 +623,182 @@ export class OracleUi {
         };
         break;
       case 'Percent':
-        colProp.dt = 'double';
+        colProp.dt = 'NUMBER';
         break;
       case 'Duration':
-        colProp.dt = 'integer';
+        colProp.dt = 'NUMBER';
         break;
       case 'Rating':
-        colProp.dt = 'integer';
+        colProp.dt = 'NUMBER';
         colProp.cdf = '0';
         break;
       case 'Formula':
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         break;
       case 'Rollup':
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         break;
       case 'Count':
-        colProp.dt = 'integer';
+        colProp.dt = 'NUMBER';
         break;
       case 'Lookup':
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         break;
       case 'DateTime':
-        colProp.dt = 'timestamp';
+        colProp.dt = 'TIMESTAMP';
         break;
       case 'CreateTime':
-        colProp.dt = 'timestamp';
+        colProp.dt = 'TIMESTAMP';
         break;
       case 'LastModifiedTime':
-        colProp.dt = 'timestamp';
+        colProp.dt = 'TIMESTAMP';
         break;
       case 'AutoNumber':
-        colProp.dt = 'integer';
+        colProp.dt = 'NUMBER';
         break;
       case 'Barcode':
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         break;
       case 'Button':
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         break;
       default:
-        colProp.dt = 'varchar';
+        colProp.dt = 'VARCHAR2';
         break;
     }
     return colProp;
+  }
+
+  static getDataTypeListForUiType(col: { uidt?: UITypes }, idType: IDType) {
+    switch (col.uidt) {
+      case 'ID':
+        if (idType === 'AG') {
+          return ['VARCHAR2', 'VARCHAR', 'NCHAR', 'NVARCHAR2'];
+        } else if (idType === 'AI') {
+          return ['NUMBER', 'INTEGER', 'SHORTINTEGER', 'LONGINTEGER'];
+        } else {
+          return dbTypes;
+        }
+      case 'ForeignKey':
+        return dbTypes;
+
+      case 'SingleLineText':
+      case 'LongText':
+      case 'Collaborator':
+        return [
+          'CHAR',
+          'VARCHAR',
+          'VARCHAR2',
+          'NCHAR',
+          'NVARCHAR2',
+          'CLOB',
+          'NCLOB',
+        ];
+      case 'Attachment':
+        return [
+          'CHAR',
+          'VARCHAR',
+          'VARCHAR2',
+          'NCHAR',
+          'NVARCHAR2',
+          'CLOB',
+          'NCLOB',
+        ];
+      case 'JSON':
+        return [
+          'CHAR',
+          'VARCHAR',
+          'VARCHAR2',
+          'NCHAR',
+          'NVARCHAR2',
+          'CLOB',
+          'NCLOB',
+        ];
+      case 'Checkbox':
+        return ['NUMBER', 'INTEGER', 'SHORTINTEGER', 'LONGINTEGER'];
+
+      case 'MultiSelect':
+      case 'SingleSelect':
+        return ['CLOB', 'NCLOB'];
+
+      case 'Year':
+        return ['NUMBER'];
+
+      case 'Time':
+        return ['DATE', 'VARCHAR', 'VARCHAR2'];
+
+      case 'PhoneNumber':
+      case 'Email':
+        return [
+          'CHAR',
+          'VARCHAR',
+          'VARCHAR2',
+          'NCHAR',
+          'NVARCHAR2',
+          'CLOB',
+          'NCLOB',
+        ];
+
+      case 'URL':
+        return [
+          'CHAR',
+          'VARCHAR',
+          'VARCHAR2',
+          'NCHAR',
+          'NVARCHAR2',
+          'CLOB',
+          'NCLOB',
+        ];
+
+      case 'Number':
+        return [
+          'INTEGER',
+          'SHORTINTEGER',
+          'LONGINTEGER',
+          'NUMBER',
+          'BINARY_FLOAT',
+          'BINARY_DOUBLE',
+        ];
+
+      case 'Decimal':
+        return ['DECIMAL', 'SHORTDECIMAL', 'NUMBER'];
+
+      case 'Currency':
+        return ['DECIMAL', 'SHORTDECIMAL', 'NUMBER'];
+      case 'Percent':
+        return ['NUMBER'];
+
+      case 'Duration':
+        return ['NUMBER'];
+
+      case 'Rating':
+        return ['NUMBER', 'SHORTINTEGER', 'LONGINTEGER', 'NUMBER'];
+
+      case 'Count':
+        return ['NUMBER'];
+
+      case 'Date':
+        return [
+          'DATE',
+          'TIMESTAMP',
+          'TIMESTAMP WITH LOCAL TIME ZONE',
+          'TIMESTAMP WITH TIME ZONE',
+        ];
+
+      case 'DateTime':
+      case 'CreateTime':
+      case 'LastModifiedTime':
+        return [
+          'DATE',
+          'TIMESTAMP',
+          'TIMESTAMP WITH LOCAL TIME ZONE',
+          'TIMESTAMP WITH TIME ZONE',
+        ];
+
+      case 'Button':
+      default:
+        return dbTypes;
+    }
   }
 
   static getUnsupportedFnList() {
