@@ -11,7 +11,7 @@ export function parseHrtimeToSeconds(hrtime) {
   return seconds;
 }
 
-const ajv = new Ajv({ strictSchema: false, strict: false }); // Initialize AJV
+export const ajv = new Ajv({ strictSchema: false, strict: false }); // Initialize AJV
 
 ajv.addSchema(swagger, 'swagger.json');
 addFormats(ajv);
