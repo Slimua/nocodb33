@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { onMounted } from '@vue/runtime-core'
 import type { RuleObject } from 'ant-design-vue/es/form'
+import type { Router } from 'vue-router'
 import {
   definePageMeta,
   iconMap,
@@ -9,6 +11,7 @@ import {
   useApi,
   useGlobal,
   useI18n,
+  useRouter,
   useSidebar,
   validateEmail,
 } from '#imports'
@@ -16,6 +19,21 @@ import {
 definePageMeta({
   requiresAuth: false,
   title: 'title.headLogin',
+})
+
+const router = useRouter()
+const route: Router['currentRoute'] = $(router.currentRoute)
+
+onMounted(() => {
+  const emailInput = document.querySelector<HTMLInputElement>('#nc-form-signin__email input')
+
+  if (emailInput) emailInput.focus()
+
+  if (route.query.redirectTo) {
+    sessionStorage.setItem('redirectTo', route.query.redirectTo as string)
+  } else {
+    sessionStorage.removeItem('redirectTo')
+  }
 })
 
 const { signIn: _signIn, appInfo } = useGlobal()
@@ -63,7 +81,10 @@ async function signIn() {
   api.auth.signin(form).then(async ({ token }) => {
     _signIn(token!)
 
-    await navigateTo('/')
+    const redirectTo = sessionStorage.getItem('redirectTo') ?? '/'
+    sessionStorage.removeItem('redirectTo')
+    if (/^https?:\/\//.test(redirectTo)) location.href = redirectTo
+    else await navigateTo(redirectTo)
   })
 }
 
