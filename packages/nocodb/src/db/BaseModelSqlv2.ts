@@ -19,6 +19,7 @@ import Validator from 'validator';
 import { customAlphabet } from 'nanoid';
 import DOMPurify from 'isomorphic-dompurify';
 import { v4 as uuidv4 } from 'uuid';
+import type { XcFile } from '~/interface/IStorageAdapter';
 import type LookupColumn from '~/models/LookupColumn';
 import type { Knex } from 'knex';
 import type { XKnex } from '~/db/CustomKnex';
@@ -2289,6 +2290,11 @@ class BaseModelSqlv2 {
         {},
         { ignoreView: true, getHiddenColumn: true },
       );
+
+      const deletedXcFiles = Object.values(data)
+        .filter(Array.isArray)
+        .flatMap((value: Array<Array<XcFile>>) => value.flat());
+
       await this.beforeDelete(id, trx, cookie);
 
       const execQueries: ((trx: Knex.Transaction) => Promise<any>)[] = [];
@@ -2354,7 +2360,7 @@ class BaseModelSqlv2 {
       if (!_trx) await trx.commit();
 
       await this.afterDelete(data, trx, cookie);
-      return response;
+      return { data: response, deletedXcFiles };
     } catch (e) {
       console.log(e);
       if (!_trx) await trx.rollback();
