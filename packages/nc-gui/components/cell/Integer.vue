@@ -5,7 +5,7 @@ interface Props {
   // when we set a number, then it is number type
   // for sqlite, when we clear a cell or empty the cell, it returns ""
   // otherwise, it is null type
-  modelValue?: number | null | string
+  modelValue?: number | string | bigint | null
 }
 
 interface Emits {
@@ -15,6 +15,15 @@ interface Emits {
 const props = defineProps<Props>()
 
 const emits = defineEmits<Emits>()
+
+const castNumber = (value: string | number | bigint) => (typeof BigInt !== 'undefined' ? BigInt(value) : Number(value))
+
+if (typeof BigInt !== 'undefined') {
+  // since BigInt is not supported in JSON.stringify, we need to convert it to string
+  ;(BigInt.prototype as any).toJSON = function () {
+    return this.toString()
+  }
+}
 
 const { showNull } = useGlobal()
 
@@ -31,11 +40,11 @@ const isForm = inject(IsFormInj)!
 const _vModel = useVModel(props, 'modelValue', emits)
 
 const displayValue = computed(() => {
-  if (_vModel.value === null) return null
+  if (_vModel.value === null || _vModel.value === undefined) return null
 
   if (isNaN(Number(_vModel.value))) return null
 
-  return Number(_vModel.value)
+  return castNumber(_vModel.value)
 })
 
 const vModel = computed({
@@ -46,14 +55,24 @@ const vModel = computed({
       // the value is considered as ''
       _vModel.value = null
     } else if (isForm.value && !isEditColumn.value) {
-      _vModel.value = isNaN(Number(value)) ? value : Number(value)
+      if (value === null || value === undefined) {
+        _vModel.value = null
+        return
+      }
+
+      _vModel.value = isNaN(Number(value)) ? value : castNumber(value)
     } else {
       _vModel.value = value
     }
   },
 })
 
-const inputType = computed(() => (isForm.value && !isEditColumn.value ? 'text' : 'number'))
+const inputType = computed(() =>
+  (vModel.value && (typeof vModel.value === 'string' ? +vModel.value : vModel.value) > Number.MAX_SAFE_INTEGER) ||
+  (isForm.value && !isEditColumn.value)
+    ? 'text'
+    : 'number',
+)
 
 const focus: VNodeRef = (el) =>
   !isExpandedFormOpen.value && !isEditColumn.value && !isForm.value && (el as HTMLInputElement)?.focus()
