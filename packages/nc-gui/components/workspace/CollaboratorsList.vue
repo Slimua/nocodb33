@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { OrderedWorkspaceRoles, WorkspaceUserRoles } from 'nocodb-sdk'
+import type { WorkspaceUserRoles } from 'nocodb-sdk'
+import { OrderedWorkspaceRoles, WorkspaceUserRoles as WorkspaceUserRolesEnum } from 'nocodb-sdk'
 
 const props = defineProps<{
   workspaceId?: string
@@ -73,7 +74,7 @@ const selectAll = computed({
 
 const updateCollaborator = async (collab: any, roles: WorkspaceUserRoles) => {
   if (!currentWorkspace.value || !currentWorkspace.value.id) return
-  console.log(WorkspaceUserRoles.OWNER)
+
   try {
     await _updateCollaborator(collab.id, roles, currentWorkspace.value.id)
     message.success('Successfully updated user role')
@@ -196,7 +197,7 @@ onMounted(async () => {
               </NcTooltip>
             </div>
             <div class="w-full justify-end flex-1 flex px-6 py-3">
-              <NcDropdown v-if="collab.roles !== WorkspaceUserRoles.OWNER">
+              <NcDropdown v-if="collab.roles !== WorkspaceUserRolesEnum.OWNER">
                 <NcButton size="small" type="secondary">
                   <component :is="iconMap.threeDotVertical" />
                 </NcButton>
@@ -213,7 +214,7 @@ onMounted(async () => {
                     <NcMenuItem
                       v-if="isUIAllowed('transferWorkspaceOwnership')"
                       data-testid="nc-admin-org-user-assign-admin"
-                      @click="updateCollaborator(collab, WorkspaceUserRoles.OWNER)"
+                      @click="updateCollaborator(collab, WorkspaceUserRolesEnum.OWNER)"
                     >
                       <GeneralIcon class="text-gray-800" icon="user" />
                       <span>{{ $t('labels.assignAs') }}</span>

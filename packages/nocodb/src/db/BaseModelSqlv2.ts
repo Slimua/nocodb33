@@ -770,7 +770,7 @@ class BaseModelSqlv2 {
       column_name: string;
       filterArr?: Filter[];
     }[],
-    view: View,
+    _view: View,
   ) {
     try {
       const columns = await this.model.getColumns(this.context);
@@ -1072,7 +1072,7 @@ class BaseModelSqlv2 {
       filterArr?: Filter[];
       sortArr?: Sort[];
     }[],
-    view: View,
+    _view: View,
   ) {
     const columns = await this.model.getColumns(this.context);
     const aliasColObjMap = await this.model.getAliasColObjMap(
