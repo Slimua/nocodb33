@@ -524,7 +524,10 @@
     "noOptionsFound": "No options found",
     "surveyFormSubmitConfirmMsg": "Are you sure you want to submit this form?",
     "noResultsMatchedYourSearch": "Your search did not yield any matching results",
-    "looksLikeThisStackIsEmpty": "Looks like this stack does not have any records"
+    "looksLikeThisStackIsEmpty": "Looks like this stack does not have any records",
+    "fromScratch": "From scratch",
+    "fromFileAndExternalSources": "From files & external sources",
+    "directlyInRealTime": "Directly in real time"
   },
   "labels": {
     "formatting": "Formatting",
@@ -672,8 +675,8 @@
     "superAdmin": "Super Admin",
     "allTables": "All Tables",
     "members": "Members",
-    "dataSources": "Live Data Sources",
-    "connectDataSource": "Connect Live Data",
+    "dataSources": "Data Sources",
+    "connectDataSource": "Connect to External Data",
     "searchProjects": "Search Bases",
     "createdBy": "Created By",
     "viewingAttachmentsOf": "Viewing Attachments of",
