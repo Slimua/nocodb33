@@ -272,6 +272,7 @@
     "stack": "Stack",
     "ipAddress": "IP Address",
     "integration": "Integration",
+    "integrations": "Integrations",
     "connection": "Connection",
     "connections": "Connections",
     "private": "Private"
